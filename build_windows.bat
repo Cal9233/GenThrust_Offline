@@ -11,6 +11,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM Install dependencies
+echo Installing dependencies...
+pip install -r requirements.txt
+
 REM Install PyInstaller if needed
 echo Checking for PyInstaller...
 pip show pyinstaller >nul 2>&1

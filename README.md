@@ -1,10 +1,11 @@
 # GenThrust_Offline - Offline Part Lookup Application
 
-A standalone desktop application for searching aircraft parts by part number from DBF database files. Works completely offline without internet connection.
+A standalone desktop application for searching aircraft parts by part number from DBF database files and Excel spreadsheets. Works completely offline without internet connection.
 
 ## Features
 
-- **Fast Search**: Search through multiple DBF database files instantly
+- **Multi-Format Support**: Reads both DBF database files and Excel spreadsheets
+- **Fast Search**: Search through multiple files instantly
 - **Partial Matching**: Find parts with partial part number matches
 - **Detailed Results**: View all available information for matching parts
 - **Simple Interface**: Easy-to-use GUI with search and clear buttons
@@ -75,12 +76,18 @@ If you need to rebuild the application:
 
 ## Data Files
 
-The application reads from these DBF files (in order of priority):
+The application reads from these files:
+
+**DBF Files:**
 - INVENT.DBF - Main inventory database
 - POITEM.DBF - Purchase order items
 - BUYQUOTE.DBF - Buy quotes
 - ALTPART.DBF - Alternative part numbers
 - KIT.DBF - Kit information
+
+**Excel Files:**
+- INVENTORIO ACTUAL GENTHRUST.xlsx - Current inventory spreadsheet
+- Any other .xlsx files in the AirDataDatabase folder
 
 ## License
 

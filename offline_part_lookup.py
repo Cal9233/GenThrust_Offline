@@ -7,6 +7,14 @@ import sys
 from datetime import datetime
 import json
 
+# Try to import openpyxl for Excel support
+try:
+    import openpyxl
+    EXCEL_SUPPORT = True
+except ImportError:
+    EXCEL_SUPPORT = False
+    print("Warning: openpyxl not installed. Excel files will not be read.")
+
 class DBFReader:
     def __init__(self, filename):
         self.filename = filename
@@ -71,10 +79,70 @@ class DBFReader:
         except Exception as e:
             print(f"Error reading {self.filename}: {str(e)}")
 
+class ExcelReader:
+    def __init__(self, filename):
+        self.filename = filename
+        self.records = []
+        self.fields = []
+        self.read_excel()
+    
+    def read_excel(self):
+        if not EXCEL_SUPPORT:
+            return
+            
+        try:
+            wb = openpyxl.load_workbook(self.filename, read_only=True, data_only=True)
+            
+            # Process each sheet
+            for sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                
+                # Get headers from first row
+                headers = []
+                for cell in ws[1]:
+                    if cell.value:
+                        headers.append(str(cell.value).strip())
+                
+                if not headers:
+                    continue
+                
+                # Store fields info (similar to DBF format)
+                if not self.fields:  # Only set fields from first sheet
+                    self.fields = [{'name': h, 'type': 'C', 'length': 255} for h in headers]
+                
+                # Read data rows
+                for row_idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+                    # Skip empty rows
+                    if not any(row):
+                        continue
+                    
+                    record = {}
+                    for col_idx, value in enumerate(row):
+                        if col_idx < len(headers):
+                            # Convert value to string and handle None
+                            str_value = str(value) if value is not None else ''
+                            record[headers[col_idx]] = str_value.strip()
+                    
+                    # Add sheet info to record
+                    record['_sheet'] = sheet_name
+                    self.records.append(record)
+                    
+                    # Limit records for performance
+                    if len(self.records) >= 50000:
+                        break
+                
+                if len(self.records) >= 50000:
+                    break
+                    
+            wb.close()
+            
+        except Exception as e:
+            print(f"Error reading Excel file {self.filename}: {str(e)}")
+
 class PartLookupApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Offline Part Number Lookup")
+        self.root.title("Offline Part Number Lookup (with Excel Support)")
         self.root.geometry("900x700")
         
         # Data storage
@@ -162,10 +230,13 @@ class PartLookupApp:
         self.root.update()
         
         # Priority files for part data
-        priority_files = ['INVENT.DBF', 'POITEM.DBF', 'BUYQUOTE.DBF', 'ALTPART.DBF', 'KIT.DBF']
+        dbf_files = ['INVENT.DBF', 'POITEM.DBF', 'BUYQUOTE.DBF', 'ALTPART.DBF', 'KIT.DBF']
+        excel_files = ['INVENTORIO ACTUAL GENTHRUST.xlsx']
         
         loaded_count = 0
-        for filename in priority_files:
+        
+        # Load DBF files
+        for filename in dbf_files:
             filepath = os.path.join(data_dir, filename)
             if os.path.exists(filepath):
                 self.status_label.config(text=f"Loading {filename}...")
@@ -175,13 +246,38 @@ class PartLookupApp:
                 if reader.records:
                     self.all_data[filename] = {
                         'fields': reader.fields,
-                        'records': reader.records
+                        'records': reader.records,
+                        'type': 'DBF'
                     }
                     loaded_count += 1
         
+        # Load Excel files
+        if EXCEL_SUPPORT:
+            for filename in excel_files:
+                filepath = os.path.join(data_dir, filename)
+                if os.path.exists(filepath):
+                    self.status_label.config(text=f"Loading {filename}...")
+                    self.root.update()
+                    
+                    reader = ExcelReader(filepath)
+                    if reader.records:
+                        self.all_data[filename] = {
+                            'fields': reader.fields,
+                            'records': reader.records,
+                            'type': 'Excel'
+                        }
+                        loaded_count += 1
+        else:
+            # Check if Excel files exist but can't be read
+            for filename in excel_files:
+                filepath = os.path.join(data_dir, filename)
+                if os.path.exists(filepath):
+                    print(f"Found {filename} but openpyxl is not installed. Skipping Excel file.")
+        
         if loaded_count > 0:
             self.data_loaded = True
-            self.status_label.config(text=f"Data loaded successfully from {loaded_count} files. Ready to search.", foreground="green")
+            excel_msg = " (Excel support enabled)" if EXCEL_SUPPORT else " (Excel support disabled - install openpyxl)"
+            self.status_label.config(text=f"Data loaded from {loaded_count} files{excel_msg}. Ready to search.", foreground="green")
             self.part_entry.focus()
         else:
             self.status_label.config(text="Error: Could not load any data files!", foreground="red")
@@ -211,7 +307,7 @@ class PartLookupApp:
             part_fields = []
             for field in data['fields']:
                 field_name = field['name'].upper()
-                if 'PART' in field_name or 'ITEM' in field_name or 'NUMBER' in field_name or 'PN' in field_name:
+                if 'PART' in field_name or 'ITEM' in field_name or 'NUMBER' in field_name or 'PN' in field_name or 'CODIGO' in field_name:
                     part_fields.append(field['name'])
             
             # If no specific part fields found, search all fields
@@ -236,7 +332,8 @@ class PartLookupApp:
                 results.append({
                     'filename': filename,
                     'matches': file_matches,
-                    'fields': data['fields']
+                    'fields': data['fields'],
+                    'type': data.get('type', 'Unknown')
                 })
         
         # Display results
@@ -245,16 +342,19 @@ class PartLookupApp:
             self.results_text.insert(tk.END, "=" * 80 + "\n\n")
             
             for result in results:
-                self.results_text.insert(tk.END, f"FILE: {result['filename']}\n")
+                self.results_text.insert(tk.END, f"FILE: {result['filename']} ({result['type']})\n")
                 self.results_text.insert(tk.END, "-" * 40 + "\n")
                 
                 for i, record in enumerate(result['matches'], 1):
-                    self.results_text.insert(tk.END, f"\nRecord {i}:\n")
+                    self.results_text.insert(tk.END, f"\nRecord {i}:")
+                    if '_sheet' in record:
+                        self.results_text.insert(tk.END, f" [Sheet: {record['_sheet']}]")
+                    self.results_text.insert(tk.END, "\n")
                     
                     # Display all non-empty fields
                     for field in result['fields']:
                         field_name = field['name']
-                        if field_name in record and record[field_name].strip():
+                        if field_name in record and record[field_name].strip() and field_name != '_sheet':
                             self.results_text.insert(tk.END, f"  {field_name}: {record[field_name]}\n")
                     
                     self.results_text.insert(tk.END, "\n")

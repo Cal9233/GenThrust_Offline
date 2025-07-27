@@ -1,0 +1,68 @@
+OFFLINE PART LOOKUP - BUILD INSTRUCTIONS
+========================================
+
+This application allows users to search for aircraft parts by part number
+from DBF database files without requiring internet connection.
+
+FEATURES:
+- Searches through multiple DBF files (INVENT.DBF, POITEM.DBF, etc.)
+- Shows all matching records with complete details
+- Simple GUI with search and clear functionality
+- Works completely offline
+
+TO CREATE STANDALONE EXECUTABLE:
+================================
+
+Option 1: Using PyInstaller (Recommended)
+-----------------------------------------
+1. On a computer with Python and internet access:
+   pip install pyinstaller
+
+2. Navigate to the genoffline directory:
+   cd /path/to/genoffline
+
+3. Run PyInstaller:
+   pyinstaller --onefile --windowed --name PartLookup offline_part_lookup.py
+
+4. The executable will be created in the 'dist' folder
+
+Option 2: Using Auto-py-to-exe (GUI method)
+--------------------------------------------
+1. Install auto-py-to-exe:
+   pip install auto-py-to-exe
+
+2. Run it:
+   auto-py-to-exe
+
+3. Select offline_part_lookup.py as the script
+4. Choose "One File" and "Window Based" options
+5. Click "Convert .py to .exe"
+
+DEPLOYMENT:
+===========
+1. Copy the executable file to the target computer
+2. Create this folder structure:
+   
+   PartLookup/
+   ├── PartLookup.exe
+   └── AirDataDatabase/
+       ├── INVENT.DBF
+       ├── POITEM.DBF
+       ├── BUYQUOTE.DBF
+       └── (other DBF files)
+
+3. Double-click PartLookup.exe to run
+
+USAGE:
+======
+1. Enter a part number in the search box
+2. Press Enter or click Search
+3. View results in the text area below
+4. Click Clear to reset and search again
+
+NOTES:
+======
+- The application will search for partial matches
+- Search is case-insensitive
+- Results show all fields with data for each matching record
+- Works on Windows without requiring Python installation

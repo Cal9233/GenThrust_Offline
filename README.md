@@ -1,4 +1,4 @@
-# Offline Part Lookup Application
+# GenThrust_Offline - Offline Part Lookup Application
 
 A standalone desktop application for searching aircraft parts by part number from DBF database files. Works completely offline without internet connection.
 
